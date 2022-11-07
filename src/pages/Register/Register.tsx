@@ -2,8 +2,9 @@
 import React, { useRef, useState } from "react";
 import { IPerson, PersonService } from "../../services/api/person/PersonService";
 import { createStyles, makeStyles, Theme } from "@material-ui/core/styles";
-import { Button, Container, Typography } from "@material-ui/core";
-import * as yup from "yup";
+import { Button, Container, Typography, TextField } from "@material-ui/core";
+import * as Yup from "yup";
+import { Formik, useFormik } from 'formik';
 import {
   VTextSelect,
   VTextArea,
@@ -24,19 +25,11 @@ const useStyles = makeStyles((theme: Theme) =>
     container: {
       background: "#f5f3f3",
       margin: "40px auto",
-      maxWidth: 250,
+      maxWidth: 500,
       borderRadius: 10,
       padding: "30px",
     },
     textField: {
-      height: 20,
-
-      marginBottom: 10,
-      marginTop: 10,
-      padding: theme.spacing(1),
-      width: "70%",
-      border: "none",
-      background: "#ffffff",
       borderRadius: 2,
     },
     area: {
@@ -53,16 +46,21 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-const schema: yup.SchemaOf<IPerson> = yup.object().shape({
-  name: yup.string().min(4, "minimo de caractes").required("* Campo nome requerido"),
-  lastname: yup.string().required("* Campo sobrenome requerido"),
-  email: yup.string().email().required("* Campo e-mail requerido"),
-  genre: yup.string().required("* Campo sexo requerido"),
-  text: yup.string().required("* Campo experiencia requerido"),
-  phone: yup.string().required("* Campo telefone requerido"),
-  cpf: yup.string().required("* Campo cpf requerido"),
-  date: yup.date().required('Campo data requerido'),
+
+
+const validationSchema: Yup.SchemaOf<IPerson> = Yup.object().shape({
+  name: Yup.string().min(4, "minimo de caractes").required("* Campo nome requerido"),
+  lastname: Yup.string().required("* Campo sobrenome requerido"),
+  email: Yup.string().email().required("* Campo e-mail requerido"),
+  genre: Yup.string().required("* Campo sexo requerido"),
+  text: Yup.string().required("* Campo experiencia requerido"),
+  phone: Yup.string().required("* Campo telefone requerido"),
+  cpf: Yup.string().min(11).required("* Campo cpf requerido"),
+  date: Yup.date().required('Campo data requerido')
 });
+
+
+
 interface FormData {
   username: string;
   bio: string;
@@ -81,17 +79,16 @@ const selectOptions = [
 const verificator = false
 export default function Register() {
   const classes = useStyles();
+  const [disabled, setDisabled] = useState(true)
   const [list, setList] = useState<IPerson[]>([]);
   const Navigate = useNavigate();
   const formRef = useRef<FormHandles>(null);
 
   let btnVerication = true
   const handleSave = (storedData: IPerson) => {
-    console.log('aqyy', schema.isValid)
-
-    schema
+    console.log('aqyy', validationSchema.isValid)
+    validationSchema
       .validate(storedData, { abortEarly: false })
-
       .then((validatePerson) => {
         PersonService.create(validatePerson).then((result) => {
           if (result instanceof Error) {
@@ -103,7 +100,7 @@ export default function Register() {
           }
         });
       })
-      .catch((errors: yup.ValidationError) => {
+      .catch((errors: Yup.ValidationError) => {
         const errorValidation: { [key: string]: string } = {};
         errors.inner.forEach((error) => {
           if (!error.path) return;
@@ -113,30 +110,66 @@ export default function Register() {
         });
       });
   };
+
+
+  const formik = useFormik({
+    initialValues: {
+      name: "",
+      lastname: '',
+      email: '',
+      genre: '',
+      text: '',
+      phone: 0,
+      cpf: '',
+      birthday: new Date(),
+      id: 0
+    },
+    validationSchema: validationSchema,
+    validateOnBlur: true,
+    onSubmit: (values: IPerson) => {
+      handleSave(values)
+    }
+  })
+
+  // const handleOnChange 
+
   return (
     <Container maxWidth="md">
-      <Form className={classes.root} ref={formRef} onSubmit={handleSave}>
+      {/* <Form className={classes.root} ref={formRef} onSubmit={handleSave} > */}
+      <Form className={classes.root} ref={formRef} onSubmit={handleSave} >
         <div className={classes.container}>
           <Typography>Nome</Typography>
-          <Input
+          <TextField
             name="name"
             placeholder="Digite seu nome"
             className={classes.textField}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={Boolean(formik.errors.name) && formik.touched.name}
+            helperText={formik.errors.name}
           />
           <Typography>Sobrenome</Typography>
-          <Input
+          <TextField
             name="lastname"
             placeholder="Digite seu sobrenome"
             className={classes.textField}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={Boolean(formik.errors.lastname) && formik.touched.lastname}
+            helperText={formik.errors.lastname}
           />
           <Typography>E-mail</Typography>
-          <Input
+          <TextField
             name="email"
             placeholder="Digite seu e-mail"
             className={classes.textField}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={Boolean(formik.errors.email) && formik.touched.email}
+            helperText={formik.errors.email}
           />
           <Typography>Telefone</Typography>
-          <Input
+          <TextField
             name="phone"
             placeholder="(00) 0000-0000"
             className={classes.textField}
@@ -146,18 +179,26 @@ export default function Register() {
                 "99 9999-9999",
                 "99 99999-9999",
               ]);
+              formik.handleChange
             }}
+            onBlur={formik.handleBlur}
+            error={Boolean(formik.errors.phone) && formik.touched.phone}
+            helperText={formik.errors.phone}
           />
           <Typography>CPF</Typography>
 
-          <Input
+          <TextField
             name="cpf"
             placeholder="000.000.000-00"
             className={classes.textField}
             onChange={(e) => {
               const { value } = e.target;
               e.target.value = mask(e.target.value, ["999.9999.999-99"]);
+              formik.handleChange
             }}
+            onBlur={formik.handleBlur}
+            error={Boolean(formik.errors.cpf) && formik.touched.cpf}
+            helperText={formik.errors.cpf}
           />
           <Typography>Sexo</Typography>
           <VTextSelect name="genre" label="">
@@ -170,12 +211,14 @@ export default function Register() {
           <Typography>Experencia</Typography>
           <VTextArea name="text" className={classes.area} />
           <Typography>Data</Typography>
-          <Input
+          <TextField
             className={classes.textField}
-            min="2021-01-01"
-            max="2021-12-31"
-            name="date"
+            name="birthday"
             type="date"
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={Boolean(formik.errors.birthday != undefined) && formik.touched.birthday != undefined}
+            helperText={formik.touched.birthday != undefined && formik.errors.birthday != undefined}
           />
 
           <div className={classes.btn}>
@@ -183,7 +226,7 @@ export default function Register() {
               variant="contained"
               color="secondary"
               type="submit"
-            //disabled={}
+              disabled={false || !formik.isValid}
             >
               Enviar
             </Button>
@@ -191,5 +234,6 @@ export default function Register() {
         </div>
       </Form>
     </Container>
+
   );
 }
